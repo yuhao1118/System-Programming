@@ -1,12 +1,6 @@
 #include<stdio.h>
-
-int add(int a, int b){
-  return a+b;
-}
-
-int subtract(int a, int b){
-  return a-b;
-}
+#include "add.h"
+#include "subtract.h"
 
 int main(){
   int a,b;
