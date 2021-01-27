@@ -27,7 +27,7 @@ options parse_options(int argc, char *argv[])
 {
   char *HELP =
       "sort: can read %d number of lines from standard input or file specified.\n\
-sort: can read %d number of character pre line.\n\n\
+sort: can read %d number of characters pre line.\n\n\
 Usage: ./sort [infile] [-n: sort numbers] [-r: reverse order] [-h: print helps] [-o outfile]\n";
   struct _options _op;
   options __op = (options)malloc(sizeof(_op));
@@ -60,7 +60,7 @@ Usage: ./sort [infile] [-n: sort numbers] [-r: reverse order] [-h: print helps] 
           __op->n = 1;
           break;
         case 'o':
-          if (i + 1 < argc)
+          if (i + 1 < argc && argv[i+1][0] != '-')
           {
             strcpy(__op->o, argv[i + 1]);
           }
@@ -146,13 +146,22 @@ int main(int argc, char *argv[])
 {
   options cmd_ops = parse_options(argc, argv);
   FILE *infile = fopen(cmd_ops->i, "r");
-  FILE *outfile = fopen(cmd_ops->o, "w");
+  FILE *outfile;
   struct input_st inputs;
 
   if (infile == NULL)
     infile = stdin;
-  if (outfile == NULL)
+  if (strlen(cmd_ops->o) == 0)
     outfile = stdout;
+  else
+    outfile = fopen(cmd_ops->o, "w");
+
+  if (outfile == NULL)
+  {
+    fprintf(stderr, "sort: option requires an argument -- o\n\n");
+    fprintf(stderr, cmd_ops->h, INT_MAX, INT_MAX);
+    exit(1);
+  }
 
   inputs = read_input(infile);
   fclose(infile);
@@ -169,8 +178,8 @@ int main(int argc, char *argv[])
   else
     for (int i = 0; i < inputs.row; i++)
       fprintf(outfile, "%s", inputs.data[i]);
-  if (strlen(cmd_ops->o) > 0)
-    fclose(outfile);
+
+  fclose(outfile);
 
   // free pointers
   for (int i = 0; i < INT_MAX; i++)

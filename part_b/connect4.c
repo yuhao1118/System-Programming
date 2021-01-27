@@ -5,11 +5,13 @@
 #include <stdlib.h>
 #include "connect4.h"
 
+#define MALLOC_MAX (16711568 / 8)
+
 struct board_structure
 {
-  char **data; // 2-d array of board
-  int row;     // actual row length used
-  int col;     // actual col length used
+  char **data; // 2-d array of board1
+  int row;     // row length used
+  int col;     // col length used
   int x_count;
   int o_count;
   int empty_cells;
@@ -50,6 +52,11 @@ board setup_board()
   }
   // can have a maximum of 2 winners --> draw the game
   u->winners = (struct winner *)malloc(sizeof(struct winner) * 2);
+  if (u->winners == NULL)
+  {
+    fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+    exit(1);
+  }
   return u;
 }
 
@@ -64,6 +71,11 @@ void cleanup_board(board u)
 
 void read_in_file(FILE *infile, board u)
 {
+  if (infile == NULL)
+  {
+    fprintf(stderr, "File stream is null\n");
+    exit(5);
+  }
   char character;
   int total_rows = 0;
   int total_cols = 0;
@@ -82,17 +94,30 @@ void read_in_file(FILE *infile, board u)
     }
   }
 
-  if (total_cols < 4 || total_cols > 512)
+  if (total_rows < 1 || total_cols < 4 || total_cols > 512)
   {
-    fprintf(stderr, "Invaild input size. Check if row and column lengths are correct.");
+    fprintf(stderr, "Invaild input size. Check if row and column lengths are correct.\n");
     exit(2);
   }
 
   u->row = total_rows;
   u->col = total_cols;
   u->data = (char **)malloc(sizeof(char *) * total_rows);
+  if (u->data == NULL)
+  {
+    fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+    exit(1);
+  }
   for (int i = 0; i < total_rows; i++)
+  {
     u->data[i] = (char *)malloc(sizeof(char) * total_cols);
+    if (u->data[i] == NULL)
+    {
+      fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+      exit(1);
+    }
+  }
+
   rewind(infile);
 
   int index = 0;
@@ -132,6 +157,11 @@ void read_in_file(FILE *infile, board u)
 
 void write_out_file(FILE *outfile, board u)
 {
+  if (outfile == NULL)
+  {
+    fprintf(stderr, "File stream is null\n");
+    exit(5);
+  }
   for (int i = 0; i < u->winners_len; i++)
   {
     struct winner cur_winner = u->winners[i];
@@ -173,6 +203,10 @@ char current_winner(board u)
     }
   }
   u->winners_len = winners_len;
+
+  if (u->empty_cells == 0 && winners_len == 0)
+    return 'd';
+
   char player;
   switch (winners_len)
   {
@@ -195,16 +229,30 @@ char current_winner(board u)
 struct move read_in_move(board u)
 {
   struct move _m;
+  char *row_input = malloc(sizeof(char) * MALLOC_MAX);
+  char *col_input = malloc(sizeof(char) * MALLOC_MAX);
+  if (row_input == NULL || col_input == NULL)
+  {
+    fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+    exit(1);
+  }
   printf("Player %c enter column to place your token: ", next_player(u)); //Do not edit this line
-  scanf("%d", &_m.column);
+  scanf("%s", col_input);
   printf("Player %c enter row to rotate: ", next_player(u)); // Do not edit this line
-  scanf("%d", &_m.row);
+  scanf("%s", row_input);
+  _m.row = atoi(row_input);
+  // if parse failed, return 0, same as do not move a row;
+  _m.column = atoi(col_input);
+  free(row_input);
+  free(col_input);
   return _m;
 }
 
 int is_valid_move(struct move m, board u)
 {
   struct actual_move act_move = parse_move(m, u);
+  if (act_move.row_direct != -1 && act_move.row_direct != 1)
+    return 0;
   if (act_move.column < 0 || act_move.column > u->col - 1 || u->data[0][act_move.column] != '.')
     return 0;
   // when act_move.row == u->row, it means the player will not rotate a row
@@ -221,8 +269,20 @@ char is_winning_move(struct move m, board u)
   c_u->col = u->col;
   // initial data memory space
   c_u->data = (char **)malloc(sizeof(char *) * u->row);
+  if (c_u->data == NULL)
+  {
+    fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+    exit(1);
+  }
   for (int i = 0; i < u->row; i++)
+  {
     c_u->data[i] = (char *)malloc(sizeof(char) * u->col);
+    if (c_u->data[i] == NULL)
+    {
+      fprintf(stderr, "Failed to allocate a memory to a variable.\n");
+      exit(1);
+    }
+  }
   // copy board data
   for (int i = 0; i < u->row; i++)
   {
@@ -253,7 +313,7 @@ void play_move(struct move m, board u)
     u->empty_cells--;
     fall_board(u);
     // update row
-    if (act_m.row != u->row)
+    if (act_m.row < u->row)
     {
       if (act_m.row_direct == 1)
       {
@@ -271,13 +331,17 @@ void play_move(struct move m, board u)
         u->data[act_m.row][u->col - 1] = key;
         fall_board(u);
       }
-      else
-      {
-        fprintf(stderr, "Cannot perform a move.");
-        exit(4);
-      }
     }
     current_winner(u);
+  }
+  else
+  {
+    printf("Move invaild. Retry!");
+  }
+  if (u->empty_cells + u->x_count + u->o_count != u->row * u->col)
+  {
+    fprintf(stderr, "Token inconsistence.\n");
+    exit(4);
   }
 }
 
